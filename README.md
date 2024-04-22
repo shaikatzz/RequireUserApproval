@@ -52,7 +52,7 @@ name: Require User Approval
 
 on:
   pull_request_review:
-    types: [editted, submitted]
+    types: [edited, submitted]
 
 jobs:
   require_user_approval:
