@@ -61,7 +61,6 @@ function run() {
         core.debug('Retrieving required group configurations...');
         let { affected: affectedGroups, unaffected: unaffectedGroups } = identifyGroupsByChangedFiles(config, yield github_1.default.fetch_changed_files());
         for (let groupName in affectedGroups) {
-            yield github_1.default.assign_reviewers(affectedGroups[groupName]);
             core.debug(` - Group: ${groupName}`);
             if (affectedGroups[groupName].required == undefined) {
                 core.warning(' - Group Required Count not specified, assuming 1 approver from group required.');
@@ -139,10 +138,12 @@ function run() {
                     core.info(`(${appCount}/${groupApprovalRequired})    ${groupNotApprovedStrings[unapproval]}`);
                 }
                 core.endGroup();
+                yield github_1.default.remove_reviewers(affectedGroups[groupName]);
             }
             else {
                 failed = true;
                 failedGroups.push(groupName);
+                yield github_1.default.assign_reviewers(affectedGroups[groupName]);
                 core.startGroup(`❌ ${groupName}: (${groupApprovalCount}/${groupApprovalRequired}) approval(s).`);
                 let appCount = 0;
                 for (let approval in groupApprovedStrings) {

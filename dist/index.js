@@ -82,6 +82,26 @@ function assign_reviewers(group) {
         });
     });
 }
+function remove_reviewers(group) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const context = get_context();
+        const octokit = get_octokit();
+        if (context.payload.pull_request == undefined) {
+            throw 'Pull Request Number is Null';
+        }
+        const [teams_with_prefix,] = (0, partition_1.default)(group.members, member => member.startsWith('team:'));
+        const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+        if (teams.length === 0) {
+            return;
+        }
+        return octokit.pulls.removeRequestedReviewers({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.payload.pull_request.number,
+            team_reviewers: teams,
+        });
+    });
+}
 function fetch_config() {
     return __awaiter(this, void 0, void 0, function* () {
         const context = get_context();
@@ -162,6 +182,7 @@ exports["default"] = {
     get_reviews,
     fetch_changed_files,
     assign_reviewers,
+    remove_reviewers,
     getTeamMembers
 };
 
@@ -235,7 +256,6 @@ function run() {
         core.debug('Retrieving required group configurations...');
         let { affected: affectedGroups, unaffected: unaffectedGroups } = identifyGroupsByChangedFiles(config, yield github_1.default.fetch_changed_files());
         for (let groupName in affectedGroups) {
-            yield github_1.default.assign_reviewers(affectedGroups[groupName]);
             core.debug(` - Group: ${groupName}`);
             if (affectedGroups[groupName].required == undefined) {
                 core.warning(' - Group Required Count not specified, assuming 1 approver from group required.');
@@ -313,10 +333,12 @@ function run() {
                     core.info(`(${appCount}/${groupApprovalRequired})    ${groupNotApprovedStrings[unapproval]}`);
                 }
                 core.endGroup();
+                yield github_1.default.remove_reviewers(affectedGroups[groupName]);
             }
             else {
                 failed = true;
                 failedGroups.push(groupName);
+                yield github_1.default.assign_reviewers(affectedGroups[groupName]);
                 core.startGroup(`❌ ${groupName}: (${groupApprovalCount}/${groupApprovalRequired}) approval(s).`);
                 let appCount = 0;
                 for (let approval in groupApprovedStrings) {

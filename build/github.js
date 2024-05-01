@@ -75,6 +75,26 @@ function assign_reviewers(group) {
         });
     });
 }
+function remove_reviewers(group) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const context = get_context();
+        const octokit = get_octokit();
+        if (context.payload.pull_request == undefined) {
+            throw 'Pull Request Number is Null';
+        }
+        const [teams_with_prefix,] = (0, partition_1.default)(group.members, member => member.startsWith('team:'));
+        const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+        if (teams.length === 0) {
+            return;
+        }
+        return octokit.pulls.removeRequestedReviewers({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.payload.pull_request.number,
+            team_reviewers: teams,
+        });
+    });
+}
 function fetch_config() {
     return __awaiter(this, void 0, void 0, function* () {
         const context = get_context();
@@ -155,5 +175,6 @@ exports.default = {
     get_reviews,
     fetch_changed_files,
     assign_reviewers,
+    remove_reviewers,
     getTeamMembers
 };
