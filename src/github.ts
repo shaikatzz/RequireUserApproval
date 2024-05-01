@@ -70,6 +70,7 @@ async function remove_reviewers(group: ConfigGroup) {
     owner: context.repo.owner,
     repo: context.repo.repo,
     pull_number: context.payload.pull_request.number,
+    reviewers: [],
     team_reviewers: teams,
   });
 }
