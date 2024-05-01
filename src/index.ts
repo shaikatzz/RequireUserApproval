@@ -122,6 +122,8 @@ async function run() {
         core.info(`(${appCount}/${groupApprovalRequired})    ${groupNotApprovedStrings[unapproval]}`);
       }
       core.endGroup();
+
+      await github.remove_reviewers(affectedGroups[groupName]);
     } else {
       failed = true;
       failedGroups.push(groupName);

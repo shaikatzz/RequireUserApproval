@@ -51,6 +51,29 @@ async function assign_reviewers(group: ConfigGroup) {
   });
 }
 
+async function remove_reviewers(group: ConfigGroup) {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  if (context.payload.pull_request == undefined) {
+    throw 'Pull Request Number is Null';
+  }
+
+  const [ teams_with_prefix,  ] = partition(group.members, member => member.startsWith('team:'));
+  const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+
+  if (teams.length === 0) {
+    return 
+  }
+
+  return octokit.pulls.removeRequestedReviewers({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: context.payload.pull_request.number,
+    team_reviewers: teams,
+  });
+}
+
 async function fetch_config(): Promise<Config> {
   const context = get_context();
   const octokit = get_octokit();
@@ -162,5 +185,6 @@ export default {
   get_reviews,
   fetch_changed_files,
   assign_reviewers,
+  remove_reviewers,
   getTeamMembers
 };
