@@ -77,6 +77,7 @@ async function run() {
     let userName = review.user.login;
     let state = review.state;
     reviewerState[userName] = state;
+    core.info(`Found ${userName} with state ${state}`);
   }
 
   core.info("Processing reviews...");
@@ -88,6 +89,9 @@ async function run() {
         for (let member in requirementMembers[group]) {
           if (member == userName) {
             requirementMembers[group][member] = true;
+            core.info(
+              `${userName} is a member of ${group} and has been approved`
+            );
           }
         }
       }
