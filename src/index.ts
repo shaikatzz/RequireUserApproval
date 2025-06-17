@@ -226,6 +226,12 @@ async function run() {
     // Post the comment
     await github.post_pr_comment(commentBody);
 
+    // Create failure status check
+    await github.create_status_check(
+      "failure",
+      `Missing approvals from: ${failedGroups.join(", ")}`
+    );
+
     core.setFailed(
       `Need approval from these groups: ${failedGroups.join(", ")}`
     );
@@ -235,6 +241,12 @@ async function run() {
       "All approval requirements satisfied, removing approval comment if it exists"
     );
     await github.delete_pr_comment();
+
+    // Create success status check
+    await github.create_status_check(
+      "success",
+      "All required approvals have been received"
+    );
   }
 }
 

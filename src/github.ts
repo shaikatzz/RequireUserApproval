@@ -247,26 +247,23 @@ async function post_pr_comment(message: string) {
     throw "Pull Request Number is Null";
   }
 
-  // Check if there's already a comment from this action
+  // Always delete any existing comment first so the new one appears at the bottom
   const existingCommentId = await find_existing_comment();
-
   if (existingCommentId) {
-    // Update the existing comment
-    return octokit.issues.updateComment({
+    await octokit.issues.deleteComment({
       owner: context.repo.owner,
       repo: context.repo.repo,
       comment_id: existingCommentId,
-      body: message,
-    });
-  } else {
-    // Create a new comment
-    return octokit.issues.createComment({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      issue_number: context.payload.pull_request.number,
-      body: message,
     });
   }
+
+  // Create a new comment (will appear at the bottom)
+  return octokit.issues.createComment({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: context.payload.pull_request.number,
+    body: message,
+  });
 }
 
 async function delete_pr_comment() {
@@ -291,6 +288,29 @@ async function delete_pr_comment() {
 
   // No comment to delete
   return null;
+}
+
+async function create_status_check(
+  state: "success" | "failure" | "pending",
+  description: string
+) {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  if (context.payload.pull_request == undefined) {
+    throw "Pull Request Number is Null";
+  }
+
+  const sha = context.payload.pull_request.head.sha;
+
+  return octokit.repos.createCommitStatus({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    sha: sha,
+    state: state,
+    context: "bcp-approval",
+    description: description,
+  });
 }
 
 let cacheContext: Context | null = null;
@@ -324,4 +344,5 @@ export default {
   get_requested_reviewers,
   find_existing_comment,
   delete_pr_comment,
+  create_status_check,
 };
