@@ -282,7 +282,7 @@ function create_status_check(state, description) {
             repo: context.repo.repo,
             sha: sha,
             state: state,
-            context: "bcp-approval",
+            context: "required-approvals",
             description: description,
         });
     });
