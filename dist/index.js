@@ -65,6 +65,7 @@ function getTeamMembers(teamName) {
     });
 }
 function assign_reviewers(group) {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         const context = get_context();
         const octokit = get_octokit();
@@ -73,9 +74,21 @@ function assign_reviewers(group) {
         }
         const [teams_with_prefix, individuals] = (0, partition_1.default)(group.members, (member) => member.startsWith("team:"));
         const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace("team:", ""));
+        // Get PR author more reliably by querying the API
+        const prData = yield octokit.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.payload.pull_request.number,
+        });
+        const prAuthor = prData.data.user.login;
+        const payloadAuthor = (_a = context.payload.pull_request.user) === null || _a === void 0 ? void 0 : _a.login;
+        // Debug logging
+        core.info(`PR Author from API: ${prAuthor}`);
+        core.info(`PR Author from payload: ${payloadAuthor}`);
+        core.info(`Original individuals: ${JSON.stringify(individuals)}`);
         // Filter out the PR author from individual reviewers to avoid GitHub API errors
-        const prAuthor = context.payload.pull_request.user.login;
         const filteredIndividuals = individuals.filter((reviewer) => reviewer !== prAuthor);
+        core.info(`Filtered individuals: ${JSON.stringify(filteredIndividuals)}`);
         return octokit.pulls.requestReviewers({
             owner: context.repo.owner,
             repo: context.repo.repo,
