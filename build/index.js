@@ -56,6 +56,10 @@ function run() {
         core.info(JSON.stringify(config, null, "\t"));
         core.info("Getting reviews...");
         let reviews = yield github_1.default.get_reviews();
+        core.info("Getting requested reviewers...");
+        let requestedReviewers = yield github_1.default.get_requested_reviewers();
+        core.info(`Requested reviewer users: ${JSON.stringify(requestedReviewers.users)}`);
+        core.info(`Requested reviewer teams: ${JSON.stringify(requestedReviewers.teams)}`);
         let requirementCounts = {};
         let requirementMembers = {};
         core.info("Retrieving required group configurations...");
@@ -101,6 +105,12 @@ function run() {
         for (let userName in reviewerState) {
             let state = reviewerState[userName];
             if (state == "APPROVED") {
+                // Check if this user is still in the requested reviewers list
+                // If they are, it means their review was dismissed and they need to re-approve
+                if (requestedReviewers.users.includes(userName)) {
+                    core.info(`${userName} has an APPROVED review but is still in requested reviewers (review was likely dismissed), not counting as approved`);
+                    continue;
+                }
                 for (let group in requirementMembers) {
                     for (let member in requirementMembers[group]) {
                         if (member == userName) {

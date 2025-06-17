@@ -192,6 +192,29 @@ async function get_reviews(): Promise<PullsListReviewsResponseData> {
   return result;
 }
 
+async function get_requested_reviewers(): Promise<{
+  users: string[];
+  teams: string[];
+}> {
+  const octokit = get_octokit();
+  const context = get_context();
+
+  if (!context.payload.pull_request) {
+    throw "No pull request found.";
+  }
+
+  const { data: response } = await octokit.pulls.listRequestedReviewers({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: context.payload.pull_request.number,
+  });
+
+  const users = response.users.map((user) => user.login);
+  const teams = response.teams.map((team) => team.slug);
+
+  return { users, teams };
+}
+
 async function post_pr_comment(message: string) {
   const context = get_context();
   const octokit = get_octokit();
@@ -236,4 +259,5 @@ export default {
   remove_reviewers,
   getTeamMembers,
   post_pr_comment,
+  get_requested_reviewers,
 };
