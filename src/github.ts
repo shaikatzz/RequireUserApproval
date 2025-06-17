@@ -215,6 +215,30 @@ async function get_requested_reviewers(): Promise<{
   return { users, teams };
 }
 
+async function find_existing_comment(): Promise<number | null> {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  if (context.payload.pull_request == undefined) {
+    throw "Pull Request Number is Null";
+  }
+
+  const comments = await octokit.issues.listComments({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: context.payload.pull_request.number,
+  });
+
+  // Look for our comment by checking for our unique identifier
+  const existingComment = comments.data.find((comment) =>
+    comment.body?.includes(
+      "*This comment is automatically updated by the RequireUserApproval action.*"
+    )
+  );
+
+  return existingComment ? existingComment.id : null;
+}
+
 async function post_pr_comment(message: string) {
   const context = get_context();
   const octokit = get_octokit();
@@ -223,12 +247,50 @@ async function post_pr_comment(message: string) {
     throw "Pull Request Number is Null";
   }
 
-  return octokit.issues.createComment({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    issue_number: context.payload.pull_request.number,
-    body: message,
-  });
+  // Check if there's already a comment from this action
+  const existingCommentId = await find_existing_comment();
+
+  if (existingCommentId) {
+    // Update the existing comment
+    return octokit.issues.updateComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      comment_id: existingCommentId,
+      body: message,
+    });
+  } else {
+    // Create a new comment
+    return octokit.issues.createComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: context.payload.pull_request.number,
+      body: message,
+    });
+  }
+}
+
+async function delete_pr_comment() {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  if (context.payload.pull_request == undefined) {
+    throw "Pull Request Number is Null";
+  }
+
+  // Check if there's an existing comment from this action
+  const existingCommentId = await find_existing_comment();
+
+  if (existingCommentId) {
+    // Delete the existing comment
+    return octokit.issues.deleteComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      comment_id: existingCommentId,
+    });
+  }
+
+  // No comment to delete
+  return null;
 }
 
 let cacheContext: Context | null = null;
@@ -260,4 +322,6 @@ export default {
   getTeamMembers,
   post_pr_comment,
   get_requested_reviewers,
+  find_existing_comment,
+  delete_pr_comment,
 };

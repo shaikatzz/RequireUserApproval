@@ -229,6 +229,12 @@ async function run() {
     core.setFailed(
       `Need approval from these groups: ${failedGroups.join(", ")}`
     );
+  } else {
+    // All approvals are satisfied, delete any existing comment
+    core.info(
+      "All approval requirements satisfied, removing approval comment if it exists"
+    );
+    await github.delete_pr_comment();
   }
 }
 

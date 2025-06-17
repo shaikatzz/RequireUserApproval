@@ -1,0 +1,23 @@
+name: "Require User Approval"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, review_requested]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+jobs:
+  require-approval:
+    name: "Require User Approval"
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require User Approval
+        uses: ./
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config: ".github/require_reviewers.yml"
