@@ -215,7 +215,7 @@ async function run() {
       }
 
       commentBody +=
-        "⏳ **Still need approval from:** " +
+        "⏳ **Still need approval from one of:** " +
         pendingMembers.map((m) => `@${m}`).join(", ") +
         "\n\n";
     }
