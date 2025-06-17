@@ -308,7 +308,7 @@ async function create_status_check(
     repo: context.repo.repo,
     sha: sha,
     state: state,
-    context: "bcp-approval",
+    context: "required-approvals",
     description: description,
   });
 }
