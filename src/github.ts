@@ -192,6 +192,22 @@ async function get_reviews(): Promise<PullsListReviewsResponseData> {
   return result;
 }
 
+async function post_pr_comment(message: string) {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  if (context.payload.pull_request == undefined) {
+    throw "Pull Request Number is Null";
+  }
+
+  return octokit.issues.createComment({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: context.payload.pull_request.number,
+    body: message,
+  });
+}
+
 let cacheContext: Context | null = null;
 
 let cacheToken: string | null = null;
@@ -219,4 +235,5 @@ export default {
   assign_reviewers,
   remove_reviewers,
   getTeamMembers,
+  post_pr_comment,
 };

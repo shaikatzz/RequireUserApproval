@@ -179,6 +179,21 @@ function get_reviews() {
         return result;
     });
 }
+function post_pr_comment(message) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const context = get_context();
+        const octokit = get_octokit();
+        if (context.payload.pull_request == undefined) {
+            throw "Pull Request Number is Null";
+        }
+        return octokit.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.pull_request.number,
+            body: message,
+        });
+    });
+}
 let cacheContext = null;
 let cacheToken = null;
 let cacheConfigPath = null;
@@ -194,4 +209,5 @@ exports.default = {
     assign_reviewers,
     remove_reviewers,
     getTeamMembers,
+    post_pr_comment,
 };

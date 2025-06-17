@@ -5,6 +5,7 @@
 A GitHub Action automatically checks to make sure that certain required users have approved a pull request.
 
 ## Configuration
+
 You need to prepare two YAML files for:
 
 - Reviewers configuration
@@ -37,7 +38,6 @@ groups:
       - username8
       - username9
     required: 1 # the number of members from this group that need to approve a PR.
-
 ```
 
 Important note: Currently, this doesn't check to make sure that the number of required approvals for a group is less than or equal to the number of members specified. Don't set it to require more users than are in the group.
@@ -45,6 +45,7 @@ Important note: Currently, this doesn't check to make sure that the number of re
 The default configuration file location is `.github/require_reviewers.yml` but you can override it in your workflow configuration file.
 
 ### Workflow configuration
+
 Create a workflow file in `.github/workflows` (e.g. `.github/workflows/require_reviewers.yml`):
 
 ```yaml
@@ -60,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Request review based on files changes and/or groups the author belongs to
-        uses: BrianCArnold/require-user-approval@v0.0.1
+        uses: shaikatzz/RequireUserApproval@latest
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config: .github/require_reviewers.yml # Config file location override

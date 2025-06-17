@@ -186,6 +186,21 @@ function get_reviews() {
         return result;
     });
 }
+function post_pr_comment(message) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const context = get_context();
+        const octokit = get_octokit();
+        if (context.payload.pull_request == undefined) {
+            throw "Pull Request Number is Null";
+        }
+        return octokit.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.pull_request.number,
+            body: message,
+        });
+    });
+}
 let cacheContext = null;
 let cacheToken = null;
 let cacheConfigPath = null;
@@ -201,6 +216,7 @@ exports["default"] = {
     assign_reviewers,
     remove_reviewers,
     getTeamMembers,
+    post_pr_comment,
 };
 
 
@@ -371,6 +387,40 @@ function run() {
             }
         }
         if (failed) {
+            // Generate comment about missing approvals
+            let commentBody = "## 🔍 Required Approvals Missing\n\n";
+            commentBody += "This PR requires approval from the following groups:\n\n";
+            for (let groupName of failedGroups) {
+                let groupApprovalRequired = requirementCounts[groupName];
+                let groupMemberApprovals = requirementMembers[groupName];
+                let groupApprovalCount = 0;
+                let approvedMembers = [];
+                let pendingMembers = [];
+                for (let member in groupMemberApprovals) {
+                    if (groupMemberApprovals[member]) {
+                        groupApprovalCount++;
+                        approvedMembers.push(member);
+                    }
+                    else {
+                        pendingMembers.push(member);
+                    }
+                }
+                commentBody += `### ${groupName} (${groupApprovalCount}/${groupApprovalRequired} approvals)\n`;
+                if (approvedMembers.length > 0) {
+                    commentBody +=
+                        "✅ **Approved by:** " +
+                            approvedMembers.map((m) => `@${m}`).join(", ") +
+                            "\n";
+                }
+                commentBody +=
+                    "⏳ **Still need approval from:** " +
+                        pendingMembers.map((m) => `@${m}`).join(", ") +
+                        "\n\n";
+            }
+            commentBody +=
+                "\n---\n*This comment is automatically updated by the RequireUserApproval action.*";
+            // Post the comment
+            yield github_1.default.post_pr_comment(commentBody);
             core.setFailed(`Need approval from these groups: ${failedGroups.join(", ")}`);
         }
     });

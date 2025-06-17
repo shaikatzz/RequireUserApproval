@@ -167,6 +167,47 @@ async function run() {
     }
   }
   if (failed) {
+    // Generate comment about missing approvals
+    let commentBody = "## 🔍 Required Approvals Missing\n\n";
+    commentBody += "This PR requires approval from the following groups:\n\n";
+
+    for (let groupName of failedGroups) {
+      let groupApprovalRequired = requirementCounts[groupName];
+      let groupMemberApprovals = requirementMembers[groupName];
+      let groupApprovalCount = 0;
+      let approvedMembers: string[] = [];
+      let pendingMembers: string[] = [];
+
+      for (let member in groupMemberApprovals) {
+        if (groupMemberApprovals[member]) {
+          groupApprovalCount++;
+          approvedMembers.push(member);
+        } else {
+          pendingMembers.push(member);
+        }
+      }
+
+      commentBody += `### ${groupName} (${groupApprovalCount}/${groupApprovalRequired} approvals)\n`;
+
+      if (approvedMembers.length > 0) {
+        commentBody +=
+          "✅ **Approved by:** " +
+          approvedMembers.map((m) => `@${m}`).join(", ") +
+          "\n";
+      }
+
+      commentBody +=
+        "⏳ **Still need approval from:** " +
+        pendingMembers.map((m) => `@${m}`).join(", ") +
+        "\n\n";
+    }
+
+    commentBody +=
+      "\n---\n*This comment is automatically updated by the RequireUserApproval action.*";
+
+    // Post the comment
+    await github.post_pr_comment(commentBody);
+
     core.setFailed(
       `Need approval from these groups: ${failedGroups.join(", ")}`
     );
