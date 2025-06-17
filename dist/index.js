@@ -53,11 +53,10 @@ function getTeamMembers(teamName) {
         const octokit = get_octokit();
         const members = yield octokit.teams.listMembersInOrg({
             org: context.repo.owner,
-            team_slug: teamName
+            team_slug: teamName,
         });
         let teamMembers = [];
-        for (let i = 0; i < members.data.length; i++) {
-            let member = members.data[i];
+        for (const member of members.data) {
             teamMembers.push(member.login);
         }
         teams[teamName] = teamMembers;
@@ -69,10 +68,10 @@ function assign_reviewers(group) {
         const context = get_context();
         const octokit = get_octokit();
         if (context.payload.pull_request == undefined) {
-            throw 'Pull Request Number is Null';
+            throw "Pull Request Number is Null";
         }
-        const [teams_with_prefix, individuals] = (0, partition_1.default)(group.members, member => member.startsWith('team:'));
-        const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+        const [teams_with_prefix, individuals] = (0, partition_1.default)(group.members, (member) => member.startsWith("team:"));
+        const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace("team:", ""));
         return octokit.pulls.requestReviewers({
             owner: context.repo.owner,
             repo: context.repo.repo,
@@ -93,7 +92,7 @@ function fetch_config() {
             path: config_path,
             ref: context.ref,
         });
-        var ymlContent = Buffer.from(response_body.content, 'base64').toString();
+        var ymlContent = Buffer.from(response_body.content, "base64").toString();
         return yaml_1.default.parse(ymlContent);
     });
 }
@@ -101,7 +100,7 @@ function fetch_changed_files() {
     return __awaiter(this, void 0, void 0, function* () {
         const context = get_context();
         if (!context.payload.pull_request) {
-            throw 'No pull request found.';
+            throw "No pull request found.";
         }
         const octokit = get_octokit();
         const changed_files = [];
@@ -128,7 +127,7 @@ function get_reviews() {
         const octokit = get_octokit();
         const context = get_context();
         if (!context.payload.pull_request) {
-            throw 'No pull request found.';
+            throw "No pull request found.";
         }
         const result = [];
         const per_page = 100;
@@ -141,7 +140,7 @@ function get_reviews() {
                 repo: context.repo.repo,
                 pull_number: context.payload.pull_request.number,
                 page: page,
-                per_page: per_page
+                per_page: per_page,
             });
             number_of_files_in_current_page = reviewsResult.data.length;
             result.push(...reviewsResult.data);
@@ -154,15 +153,21 @@ let cacheToken = null;
 let cacheConfigPath = null;
 let cacheOctoKit = null;
 let get_context = () => cacheContext || (cacheContext = github.context);
-let get_token = () => cacheToken || (cacheToken = core.getInput('token'));
-let get_config_path = () => cacheConfigPath || (cacheConfigPath = core.getInput('config'));
+let get_token = () => cacheToken || (cacheToken = core.getInput("token"));
+let get_config_path = () => cacheConfigPath || (cacheConfigPath = core.getInput("config"));
 let get_octokit = () => cacheOctoKit || (cacheOctoKit = github.getOctokit(get_token()));
+function getPRAuthor() {
+    var _a, _b;
+    const context = get_context();
+    return ((_b = (_a = context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.user) === null || _b === void 0 ? void 0 : _b.login) || null;
+}
 exports["default"] = {
     fetch_config,
     get_reviews,
     fetch_changed_files,
     assign_reviewers,
-    getTeamMembers
+    getTeamMembers,
+    getPRAuthor,
 };
 
 
@@ -215,30 +220,33 @@ const github_1 = __importDefault(__nccwpck_require__(7295));
 function run() {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
-        core.info('Fetching configuration...');
+        core.info("Fetching configuration...");
         let config;
         try {
             config = yield github_1.default.fetch_config();
         }
         catch (error) {
             if (error.status === 404) {
-                core.warning('No configuration file is found in the base branch; terminating the process');
+                core.warning("No configuration file is found in the base branch; terminating the process");
             }
             throw error;
         }
         core.debug("Config: ");
-        core.debug(JSON.stringify(config, null, '\t'));
-        core.info('Getting reviews...');
+        core.debug(JSON.stringify(config, null, "\t"));
+        // Get PR author
+        const prAuthor = github_1.default.getPRAuthor();
+        core.info(`PR Author: ${prAuthor}`);
+        core.info("Getting reviews...");
         let reviews = yield github_1.default.get_reviews();
         let requirementCounts = {};
         let requirementMembers = {};
-        core.debug('Retrieving required group configurations...');
+        core.debug("Retrieving required group configurations...");
         let { affected: affectedGroups, unaffected: unaffectedGroups } = identifyGroupsByChangedFiles(config, yield github_1.default.fetch_changed_files());
         for (let groupName in affectedGroups) {
             yield github_1.default.assign_reviewers(affectedGroups[groupName]);
             core.debug(` - Group: ${groupName}`);
             if (affectedGroups[groupName].required == undefined) {
-                core.warning(' - Group Required Count not specified, assuming 1 approver from group required.');
+                core.warning(" - Group Required Count not specified, assuming 1 approver from group required.");
                 affectedGroups[groupName].required = 1;
             }
             else {
@@ -248,32 +256,39 @@ function run() {
             core.debug(` - Requiring ${affectedGroups[groupName].required} of the following:`);
             for (let i in affectedGroups[groupName].members) {
                 let member = affectedGroups[groupName].members[i];
-                if (member.startsWith('team:')) { // extract teams.
+                if (member.startsWith("team:")) {
+                    // extract teams.
                     let teamMembers = yield github_1.default.getTeamMembers(member.substring(5));
                     for (let j in teamMembers) {
                         let teamMember = teamMembers[j];
+                        // Exclude PR author
+                        if (teamMember === prAuthor)
+                            continue;
                         requirementMembers[groupName][teamMember] = false;
                         core.debug(`   - ${teamMember}`);
                     }
                 }
                 else {
+                    // Exclude PR author
+                    if (member === prAuthor)
+                        continue;
                     requirementMembers[groupName][member] = false;
                     core.debug(`   - ${member}`);
                 }
             }
         }
         let reviewerState = {};
-        core.debug('Getting most recent review for each reviewer...');
+        core.debug("Getting most recent review for each reviewer...");
         for (let i = 0; i < reviews.length; i++) {
             let review = reviews[i];
             let userName = review.user.login;
             let state = review.state;
             reviewerState[userName] = state;
         }
-        core.debug('Processing reviews...');
+        core.debug("Processing reviews...");
         for (let userName in reviewerState) {
             let state = reviewerState[userName];
-            if (state == 'APPROVED') {
+            if (state == "APPROVED") {
                 for (let group in requirementMembers) {
                     for (let member in requirementMembers[group]) {
                         if (member == userName) {
@@ -285,7 +300,7 @@ function run() {
         }
         let failed = false;
         let failedGroups = [];
-        core.debug('Checking for required reviewers...');
+        core.debug("Checking for required reviewers...");
         for (let groupName in requirementMembers) {
             let groupApprovalRequired = requirementCounts[groupName];
             let groupMemberApprovals = requirementMembers[groupName];
@@ -329,7 +344,7 @@ function run() {
             }
         }
         if (failed) {
-            core.setFailed(`Need approval from these groups: ${failedGroups.join(', ')}`);
+            core.setFailed(`Need approval from these groups: ${failedGroups.join(", ")}`);
         }
     });
 }
@@ -343,7 +358,10 @@ function identifyGroupsByChangedFiles(config, changedFiles) {
             core.warning(`No specific path globs assigned for group ${groupName}, assuming global approval.`);
             affected[groupName] = group;
         }
-        else if (fileGlobs.filter(glob => minimatch.match(changedFiles, glob, { nonull: false, matchBase: true }).length > 0).length > 0) {
+        else if (fileGlobs.filter((glob) => minimatch.match(changedFiles, glob, {
+            nonull: false,
+            matchBase: true,
+        }).length > 0).length > 0) {
             affected[groupName] = group;
         }
         else {
@@ -356,7 +374,7 @@ module.exports = {
     run,
 };
 // Run the action if it's not running in an automated testing environment
-if (process.env.NODE_ENV !== 'automated-testing') {
+if (process.env.NODE_ENV !== "automated-testing") {
     run().catch((error) => {
         console.log(error);
         core.setFailed(error);
