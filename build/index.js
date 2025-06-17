@@ -205,6 +205,11 @@ function run() {
             yield github_1.default.post_pr_comment(commentBody);
             core.setFailed(`Need approval from these groups: ${failedGroups.join(", ")}`);
         }
+        else {
+            // All approvals are satisfied, delete any existing comment
+            core.info("All approval requirements satisfied, removing approval comment if it exists");
+            yield github_1.default.delete_pr_comment();
+        }
     });
 }
 function identifyGroupsByChangedFiles(config, changedFiles) {

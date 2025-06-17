@@ -196,6 +196,26 @@ function get_requested_reviewers() {
         return { users, teams };
     });
 }
+function find_existing_comment() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const context = get_context();
+        const octokit = get_octokit();
+        if (context.payload.pull_request == undefined) {
+            throw "Pull Request Number is Null";
+        }
+        const comments = yield octokit.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.pull_request.number,
+        });
+        // Look for our comment by checking for our unique identifier
+        const existingComment = comments.data.find((comment) => {
+            var _a;
+            return (_a = comment.body) === null || _a === void 0 ? void 0 : _a.includes("*This comment is automatically updated by the RequireUserApproval action.*");
+        });
+        return existingComment ? existingComment.id : null;
+    });
+}
 function post_pr_comment(message) {
     return __awaiter(this, void 0, void 0, function* () {
         const context = get_context();
@@ -203,12 +223,47 @@ function post_pr_comment(message) {
         if (context.payload.pull_request == undefined) {
             throw "Pull Request Number is Null";
         }
-        return octokit.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.payload.pull_request.number,
-            body: message,
-        });
+        // Check if there's already a comment from this action
+        const existingCommentId = yield find_existing_comment();
+        if (existingCommentId) {
+            // Update the existing comment
+            return octokit.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingCommentId,
+                body: message,
+            });
+        }
+        else {
+            // Create a new comment
+            return octokit.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: message,
+            });
+        }
+    });
+}
+function delete_pr_comment() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const context = get_context();
+        const octokit = get_octokit();
+        if (context.payload.pull_request == undefined) {
+            throw "Pull Request Number is Null";
+        }
+        // Check if there's an existing comment from this action
+        const existingCommentId = yield find_existing_comment();
+        if (existingCommentId) {
+            // Delete the existing comment
+            return octokit.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingCommentId,
+            });
+        }
+        // No comment to delete
+        return null;
     });
 }
 let cacheContext = null;
@@ -228,4 +283,6 @@ exports.default = {
     getTeamMembers,
     post_pr_comment,
     get_requested_reviewers,
+    find_existing_comment,
+    delete_pr_comment,
 };
