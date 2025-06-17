@@ -53,7 +53,7 @@ function getTeamMembers(teamName) {
         const octokit = get_octokit();
         const members = yield octokit.teams.listMembersInOrg({
             org: context.repo.owner,
-            team_slug: teamName
+            team_slug: teamName,
         });
         let teamMembers = [];
         for (let i = 0; i < members.data.length; i++) {
@@ -69,15 +69,18 @@ function assign_reviewers(group) {
         const context = get_context();
         const octokit = get_octokit();
         if (context.payload.pull_request == undefined) {
-            throw 'Pull Request Number is Null';
+            throw "Pull Request Number is Null";
         }
-        const [teams_with_prefix, individuals] = (0, partition_1.default)(group.members, member => member.startsWith('team:'));
-        const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+        const [teams_with_prefix, individuals] = (0, partition_1.default)(group.members, (member) => member.startsWith("team:"));
+        const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace("team:", ""));
+        // Filter out the PR author from individual reviewers to avoid GitHub API errors
+        const prAuthor = context.payload.pull_request.user.login;
+        const filteredIndividuals = individuals.filter((reviewer) => reviewer !== prAuthor);
         return octokit.pulls.requestReviewers({
             owner: context.repo.owner,
             repo: context.repo.repo,
             pull_number: context.payload.pull_request.number,
-            reviewers: individuals,
+            reviewers: filteredIndividuals,
             team_reviewers: teams,
         });
     });
@@ -87,10 +90,10 @@ function remove_reviewers(group) {
         const context = get_context();
         const octokit = get_octokit();
         if (context.payload.pull_request == undefined) {
-            throw 'Pull Request Number is Null';
+            throw "Pull Request Number is Null";
         }
-        const [teams_with_prefix,] = (0, partition_1.default)(group.members, member => member.startsWith('team:'));
-        const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+        const [teams_with_prefix] = (0, partition_1.default)(group.members, (member) => member.startsWith("team:"));
+        const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace("team:", ""));
         if (teams.length === 0) {
             return;
         }
@@ -114,7 +117,7 @@ function fetch_config() {
             path: config_path,
             ref: context.ref,
         });
-        var ymlContent = Buffer.from(response_body.content, 'base64').toString();
+        var ymlContent = Buffer.from(response_body.content, "base64").toString();
         return yaml_1.default.parse(ymlContent);
     });
 }
@@ -122,7 +125,7 @@ function fetch_changed_files() {
     return __awaiter(this, void 0, void 0, function* () {
         const context = get_context();
         if (!context.payload.pull_request) {
-            throw 'No pull request found.';
+            throw "No pull request found.";
         }
         const octokit = get_octokit();
         const changed_files = [];
@@ -149,7 +152,7 @@ function get_reviews() {
         const octokit = get_octokit();
         const context = get_context();
         if (!context.payload.pull_request) {
-            throw 'No pull request found.';
+            throw "No pull request found.";
         }
         const result = [];
         const per_page = 100;
@@ -162,7 +165,7 @@ function get_reviews() {
                 repo: context.repo.repo,
                 pull_number: context.payload.pull_request.number,
                 page: page,
-                per_page: per_page
+                per_page: per_page,
             });
             number_of_files_in_current_page = reviewsResult.data.length;
             result.push(...reviewsResult.data);
@@ -175,8 +178,8 @@ let cacheToken = null;
 let cacheConfigPath = null;
 let cacheOctoKit = null;
 let get_context = () => cacheContext || (cacheContext = github.context);
-let get_token = () => cacheToken || (cacheToken = core.getInput('token'));
-let get_config_path = () => cacheConfigPath || (cacheConfigPath = core.getInput('config'));
+let get_token = () => cacheToken || (cacheToken = core.getInput("token"));
+let get_config_path = () => cacheConfigPath || (cacheConfigPath = core.getInput("config"));
 let get_octokit = () => cacheOctoKit || (cacheOctoKit = github.getOctokit(get_token()));
 exports["default"] = {
     fetch_config,
@@ -184,7 +187,7 @@ exports["default"] = {
     fetch_changed_files,
     assign_reviewers,
     remove_reviewers,
-    getTeamMembers
+    getTeamMembers,
 };
 
 
