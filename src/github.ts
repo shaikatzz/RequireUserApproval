@@ -45,11 +45,27 @@ async function assign_reviewers(group: ConfigGroup) {
     team_with_prefix.replace("team:", "")
   );
 
+  // Get PR author more reliably by querying the API
+  const prData = await octokit.pulls.get({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: context.payload.pull_request.number,
+  });
+
+  const prAuthor = prData.data.user.login;
+  const payloadAuthor = context.payload.pull_request.user?.login;
+
+  // Debug logging
+  core.info(`PR Author from API: ${prAuthor}`);
+  core.info(`PR Author from payload: ${payloadAuthor}`);
+  core.info(`Original individuals: ${JSON.stringify(individuals)}`);
+
   // Filter out the PR author from individual reviewers to avoid GitHub API errors
-  const prAuthor = context.payload.pull_request.user.login;
   const filteredIndividuals = individuals.filter(
     (reviewer) => reviewer !== prAuthor
   );
+
+  core.info(`Filtered individuals: ${JSON.stringify(filteredIndividuals)}`);
 
   return octokit.pulls.requestReviewers({
     owner: context.repo.owner,
