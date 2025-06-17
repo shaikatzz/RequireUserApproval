@@ -230,26 +230,22 @@ function post_pr_comment(message) {
         if (context.payload.pull_request == undefined) {
             throw "Pull Request Number is Null";
         }
-        // Check if there's already a comment from this action
+        // Always delete any existing comment first so the new one appears at the bottom
         const existingCommentId = yield find_existing_comment();
         if (existingCommentId) {
-            // Update the existing comment
-            return octokit.issues.updateComment({
+            yield octokit.issues.deleteComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: existingCommentId,
-                body: message,
             });
         }
-        else {
-            // Create a new comment
-            return octokit.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
-                body: message,
-            });
-        }
+        // Create a new comment (will appear at the bottom)
+        return octokit.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.pull_request.number,
+            body: message,
+        });
     });
 }
 function delete_pr_comment() {
@@ -273,6 +269,24 @@ function delete_pr_comment() {
         return null;
     });
 }
+function create_status_check(state, description) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const context = get_context();
+        const octokit = get_octokit();
+        if (context.payload.pull_request == undefined) {
+            throw "Pull Request Number is Null";
+        }
+        const sha = context.payload.pull_request.head.sha;
+        return octokit.repos.createCommitStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            sha: sha,
+            state: state,
+            context: "bcp-approval",
+            description: description,
+        });
+    });
+}
 let cacheContext = null;
 let cacheToken = null;
 let cacheConfigPath = null;
@@ -292,6 +306,7 @@ exports["default"] = {
     get_requested_reviewers,
     find_existing_comment,
     delete_pr_comment,
+    create_status_check,
 };
 
 
@@ -506,12 +521,16 @@ function run() {
                 "\n---\n*This comment is automatically updated by the RequireUserApproval action.*";
             // Post the comment
             yield github_1.default.post_pr_comment(commentBody);
+            // Create failure status check
+            yield github_1.default.create_status_check("failure", `Missing approvals from: ${failedGroups.join(", ")}`);
             core.setFailed(`Need approval from these groups: ${failedGroups.join(", ")}`);
         }
         else {
             // All approvals are satisfied, delete any existing comment
             core.info("All approval requirements satisfied, removing approval comment if it exists");
             yield github_1.default.delete_pr_comment();
+            // Create success status check
+            yield github_1.default.create_status_check("success", "All required approvals have been received");
         }
     });
 }

@@ -203,12 +203,16 @@ function run() {
                 "\n---\n*This comment is automatically updated by the RequireUserApproval action.*";
             // Post the comment
             yield github_1.default.post_pr_comment(commentBody);
+            // Create failure status check
+            yield github_1.default.create_status_check("failure", `Missing approvals from: ${failedGroups.join(", ")}`);
             core.setFailed(`Need approval from these groups: ${failedGroups.join(", ")}`);
         }
         else {
             // All approvals are satisfied, delete any existing comment
             core.info("All approval requirements satisfied, removing approval comment if it exists");
             yield github_1.default.delete_pr_comment();
+            // Create success status check
+            yield github_1.default.create_status_check("success", "All required approvals have been received");
         }
     });
 }
